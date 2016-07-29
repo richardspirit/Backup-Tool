@@ -76,14 +76,8 @@ function Set-Directory
 	$txtCatExec.Text = $inputFile
 }
 
-function Build-Command
+function Backup-Command
 {
-	$user = $txtUser.Text
-	$password = $txtPassword.Text
-	$server = $SOServer.Text
-	$store = $txtStore.Text
-	$command = $txtCatExec.Text
-	
 	if ($rdbDiff.checked -eq $true){
 		$bkpType = "WITH DIFFERENTIAL"
 	}
@@ -94,14 +88,58 @@ function Build-Command
 			$bkpLog = 'DATABASE'
 	}
 	
-	#$bkpString = "'" + $command + "'" + " -backup=" + """BACKUP " + $bkpLog + " [" + $database + "]" + " TO STORE=" + "'" + $user + ":" + $password + "@" + $server + "/" + $store + "' " + $bkpType + """"
 	$bkpString =  "BACKUP " + $bkpLog + " [" + $database + "]" + " TO STORE=" + "'" + $user + ":" + $password + "@" + $server + "/" + $store + "' " + $bkpType + """"
-	& $command -backup $bkpString | Out-File C:\Users\sql_svc\Desktop\backup.log
+	write-host $bkpType $bkpLog
+	$txtList.clear()
+	
+	& $command -backup $bkpString | Out-String -Stream | foreach-object {
+		$txtList.lines = $txtList.lines + $_
+		$txtList.Select($txtList.Text.Length, 0)
+		$txtList.ScrollToCaret()
+		$bkpForm.Update()
+	}
+}
+
+function Restore-Command
+{
+}
+
+function List-Command
+{
+	$listString = '-store=' + "'" + $user + ":" + $password + "@" + $server + "/" + $store + "'"
+	
+	$txtList.clear()
+	
+	& $command -list $listString | Out-String -Stream | foreach-object {
+		$txtList.lines = $txtList.lines + $_
+		$txtList.Select($txtList.Text.Length, 0)
+		$txtList.ScrollToCaret()
+		$bkpForm.Update()
+	}
+}
+
+function Build-Command
+{
+	$catCommand = $args[0]
+	
+	$user = $txtUser.Text
+	$password = $txtPassword.Text
+	$server = $SOServer.Text
+	$store = $txtStore.Text
+	$command = $txtCatExec.Text
+	
+	switch ($catCommand)
+		{
+			1 {Backup-Command}
+			2 {"Restore"}
+			3 {List-Command}
+		}
+	
 }
 
 $objForm = New-Object System.Windows.Forms.Form 
 $objForm.Text = "Backup Solution"
-$objForm.Size = New-Object System.Drawing.Size(600,400) 
+$objForm.Size = New-Object System.Drawing.Size(500,220) 
 $objForm.StartPosition = "CenterScreen"
 
 $objForm.KeyPreview = $True
@@ -123,7 +161,7 @@ $OKButton.Add_Click({openBkpFrm})
 $objForm.Controls.Add($OKButton)
 
 $btnExit = New-Object System.Windows.Forms.Button
-$btnExit.Location = New-Object System.Drawing.Size(380,330)
+$btnExit.Location = New-Object System.Drawing.Size(75,150)
 $btnExit.Size = New-Object System.Drawing.Size(75,23)
 $btnExit.Text = "Exit"
 $btnExit.Add_Click({$objForm.Close()})
@@ -261,11 +299,39 @@ $txtPassword.Size = New-Object System.Drawing.Size(260,20)
 $bkpForm.Controls.Add($txtPassword)
 
 $btnStart = New-Object System.Windows.Forms.Button
-$btnStart.Location = New-Object System.Drawing.Size(300,150)
+$btnStart.Location = New-Object System.Drawing.Size(170,130)
 $btnStart.Size = New-Object System.Drawing.Size(80,23)
 $btnStart.Text = "Start Backup"
-$btnStart.Add_Click({Build-Command})
+$btnStart.Add_Click({Build-Command 1})
 $bkpForm.Controls.Add($btnStart)
+
+$btnExit2 = New-Object System.Windows.Forms.Button
+$btnExit2.Location = New-Object System.Drawing.Size(400,300)
+$btnExit2.Size = New-Object System.Drawing.Size(75,23)
+$btnExit2.Text = "Exit"
+$btnExit2.Add_Click({$bkpForm.Close();$objForm.Close()})
+$bkpForm.Controls.Add($btnExit2)
+
+$btnList = New-Object System.Windows.Forms.Button
+$btnList.Location = New-Object System.Drawing.Size(170,160)
+$btnList.Size = New-Object System.Drawing.Size(80,23)
+$btnList.Text = "List Backups"
+$btnList.Add_Click({Build-Command 3})
+$bkpForm.Controls.Add($btnList)
+
+$btnRestore = New-Object System.Windows.Forms.Button
+$btnRestore.Location = New-Object System.Drawing.Size(170,190)
+$btnRestore.Size = New-Object System.Drawing.Size(80,23)
+$btnRestore.Text = "Start Restore"
+$btnRestore.Add_Click({Build-Command})
+$bkpForm.Controls.Add($btnRestore)
+
+$txtList = New-Object System.Windows.Forms.RichTextBox 
+$txtList.Location = New-Object System.Drawing.Size(280,130) 
+$txtList.Size = New-Object System.Drawing.Size(260,150) 
+$bkpForm.Controls.Add($txtList)
+
+
 
 $objForm.Add_Shown({$objForm.Activate()})
 [void] $objForm.ShowDialog()
