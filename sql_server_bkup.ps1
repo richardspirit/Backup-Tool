@@ -1,9 +1,15 @@
 ﻿Import-Module ShowUI
-
+Import-Module ScheduledTasks
 
 [void] [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms")
 [void] [System.Reflection.Assembly]::LoadWithPartialName("System.Drawing") 
+[System.Windows.Forms.Application]::EnableVisualStyles()
 
+$file = [system.drawing.image]::fromfile('C:\Users\sql_svc\Desktop\backup2.gif')
+[array]$DropDownArray = "Monthly", "Weekly", "Daily", "Hourly"
+$minArray = @("00","01","02","03","04","05","06","07","08","09" + 10..59)
+$hourArray = @(0..12)
+$amPm = "Am", "Pm", "24Hr"
 
 function get-db-list
 {
@@ -55,6 +61,12 @@ function openBkpFrm
 	$dbLabel.Text = $database
 	$bkpForm.Add_Shown({$bkpForm.Activate()})
 	[void] $bkpForm.ShowDialog()
+}
+
+function openBkpSched
+{
+	$bkpSched.Add_Shown({$bkpSched.Activate()})
+	[void] $bkpSched.ShowDialog()
 }
 
 Function Get-OpenFile($initialDirectory)
@@ -137,6 +149,39 @@ function Build-Command
 	
 }
 
+function Create-Job
+{
+	$jobName = $txtSchName.text
+	$interval = $DropDown.Text
+	$hour = $drpHours.Text
+	$min = $drpMin.Text
+	$dtmDate=$objCalendar.SelectionStart
+
+	if ($dtmDate)
+		{
+			write-host $dtmDate.ToShortDateString()
+		}
+	
+	
+	
+	write-host $hour
+	write-host $min
+	write-host $interval
+	write-host $jobName
+}
+
+$drpAmPm_SelectedIndexChanged=
+{
+   if ($drpAmPm.Text -eq "24Hr")
+   {
+		$envnames = @("00","01","02","03","04","05","06","07","08","09" + 10..24)
+   } else 
+   {
+		$envnames = @(1..12)
+   }
+   $drpHours.DataSource = $envnames
+}
+
 $objForm = New-Object System.Windows.Forms.Form 
 $objForm.Text = "Backup Solution"
 $objForm.Size = New-Object System.Drawing.Size(500,220) 
@@ -194,7 +239,7 @@ $objForm.Controls.Add($objListBox)
 
 $bkpForm = New-Object System.Windows.Forms.Form 
 $bkpForm.Text = "Backup Solution"
-$bkpForm.Size = New-Object System.Drawing.Size(600,400) 
+$bkpForm.Size = New-Object System.Drawing.Size(1000,500) 
 $bkpForm.StartPosition = "CenterScreen"
 $bkpForm.KeyPreview = $True
 $bkpForm.Add_KeyDown({if ($_.KeyCode -eq "Enter") 
@@ -259,19 +304,19 @@ $rdbLog.Text = "Log Backup" #labeling the radio button
 $gpbType.Controls.Add($rdbLog) #activate the inside the group box
 
 $txtCatExec = New-Object System.Windows.Forms.TextBox 
-$txtCatExec.Location = New-Object System.Drawing.Size(10,300) 
-$txtCatExec.Size = New-Object System.Drawing.Size(260,23) 
+$txtCatExec.Location = New-Object System.Drawing.Size(280,170) 
+$txtCatExec.Size = New-Object System.Drawing.Size(200,23) 
 $bkpForm.Controls.Add($txtCatExec)
 
 $lblCatExec = New-Object System.Windows.Forms.Label
-$lblCatExec.Location = New-Object System.Drawing.Size(10,280)
+$lblCatExec.Location = New-Object System.Drawing.Size(280,150)
 $lblCatExec.Size = New-Object System.Drawing.Size(260,20)
 $lblCatExec.Text = "Select HPStoreOnceForMSSQL.exe Location"
 $bkpForm.Controls.Add($lblCatExec)
 
 $btnBrowse = New-Object System.Windows.Forms.Button
-$btnBrowse.Location = New-Object System.Drawing.Size(275,295)
-$btnBrowse.Size = New-Object System.Drawing.Size(75,23)
+$btnBrowse.Location = New-Object System.Drawing.Size(480,170)
+$btnBrowse.Size = New-Object System.Drawing.Size(75,21)
 $btnBrowse.Text = "Browse"
 $btnBrowse.Add_Click({$inputFile = Set-Directory})
 $bkpForm.Controls.Add($btnBrowse)
@@ -306,7 +351,7 @@ $btnStart.Add_Click({Build-Command 1})
 $bkpForm.Controls.Add($btnStart)
 
 $btnExit2 = New-Object System.Windows.Forms.Button
-$btnExit2.Location = New-Object System.Drawing.Size(400,300)
+$btnExit2.Location = New-Object System.Drawing.Size(870,400)
 $btnExit2.Size = New-Object System.Drawing.Size(75,23)
 $btnExit2.Text = "Exit"
 $btnExit2.Add_Click({$bkpForm.Close();$objForm.Close()})
@@ -327,11 +372,145 @@ $btnRestore.Add_Click({Build-Command})
 $bkpForm.Controls.Add($btnRestore)
 
 $txtList = New-Object System.Windows.Forms.RichTextBox 
-$txtList.Location = New-Object System.Drawing.Size(280,130) 
-$txtList.Size = New-Object System.Drawing.Size(260,150) 
+$txtList.Location = New-Object System.Drawing.Size(10,230) 
+$txtList.Size = New-Object System.Drawing.Size(850,200) 
 $bkpForm.Controls.Add($txtList)
 
+$pictureBox = new-object Windows.Forms.PictureBox
+$pictureBox.Location = New-Object System.Drawing.Size(560,0)
+$pictureBox.Width = 420
+$pictureBox.Height = 225
+$pictureBox.Image = $file;
+$bkpForm.controls.add($pictureBox)
 
+$btnSchedule = New-Object System.Windows.Forms.Button
+$btnSchedule.Location = New-Object System.Drawing.Size(870,350)
+$btnSchedule.Size = New-Object System.Drawing.Size(75,23)
+$btnSchedule.Text = "Schedule"
+$btnSchedule.Add_Click({openBkpSched})
+$bkpForm.Controls.Add($btnSchedule)
+
+$bkpSched = New-Object System.Windows.Forms.Form 
+$bkpSched.Text = "Backup Solution"
+$bkpSched.Size = New-Object System.Drawing.Size(265,500) 
+$bkpSched.StartPosition = "CenterScreen"
+$bkpSched.KeyPreview = $True
+$bkpSched.Add_KeyDown({if ($_.KeyCode -eq "Enter") 
+    {$x=$objListBox.SelectedItem;$bkpSched.Close()}})
+$bkpSched.Add_KeyDown({if ($_.KeyCode -eq "Escape") 
+    {$bkpSched.Close()}}) 
+
+$btnExit3 = New-Object System.Windows.Forms.Button
+$btnExit3.Location = New-Object System.Drawing.Size(150,400)
+$btnExit3.Size = New-Object System.Drawing.Size(75,23)
+$btnExit3.Text = "Exit"
+$btnExit3.Add_Click({$bkpSched.Close()})
+$bkpSched.Controls.Add($btnExit3)
+
+$objCalendar = New-Object System.Windows.Forms.MonthCalendar 
+$objCalendar.Location = New-Object System.Drawing.Size(10,200)
+$objCalendar.ShowTodayCircle = $False
+$objCalendar.MaxSelectionCount = 1
+$objCalendar.MinDate = Get-Date
+$bkpSched.Controls.Add($objCalendar) 
+
+$lblSchName = New-Object System.Windows.Forms.Label
+$lblSchName.Location = New-Object System.Drawing.Size(10,10)
+$lblSchName.Size = New-Object System.Drawing.Size(100,20)
+$lblSchName.Text = "Schedule Name"
+$bkpSched.Controls.Add($lblSchName)
+
+$txtSchName = New-Object System.Windows.Forms.RichTextBox 
+$txtSchName.Location = New-Object System.Drawing.Size(10,30) 
+$txtSchName.Size = New-Object System.Drawing.Size(225,20) 
+$bkpSched.Controls.Add($txtSchName)
+
+$DropDown = new-object System.Windows.Forms.ComboBox
+$DropDown.Location = new-object System.Drawing.Size(40,80)
+$DropDown.Size = new-object System.Drawing.Size(130,30)
+$bkpSched.Controls.Add($DropDown)
+
+ForEach ($Item in $DropDownArray){
+     [void] $DropDown.Items.Add($Item)
+}
+
+$lblInterval = New-Object System.Windows.Forms.Label
+$lblInterval.Location = New-Object System.Drawing.Size(40,60)
+$lblInterval.Size = New-Object System.Drawing.Size(100,20)
+$lblInterval.Text = "Interval"
+$bkpSched.Controls.Add($lblInterval)
+
+$lblHours = New-Object System.Windows.Forms.Label
+$lblHours.Location = New-Object System.Drawing.Size(20,110)
+$lblHours.Size = New-Object System.Drawing.Size(50,20)
+$lblHours.Text = "Hour:"
+$bkpSched.Controls.Add($lblHours)
+
+$drpHours = new-object System.Windows.Forms.ComboBox
+$drpHours.Location = new-object System.Drawing.Size(20,130)
+$drpHours.Size = new-object System.Drawing.Size(45,30)
+$bkpSched.Controls.Add($drpHours)
+
+ForEach ($Item in $hourArray){
+     [void] $drpHours.Items.Add($Item)
+}
+
+$lblMin = New-Object System.Windows.Forms.Label
+$lblMin.Location = New-Object System.Drawing.Size(100,110)
+$lblMin.Size = New-Object System.Drawing.Size(50,20)
+$lblMin.Text = "Minute:"
+$bkpSched.Controls.Add($lblMin)
+
+$drpMin = new-object System.Windows.Forms.ComboBox
+$drpMin.Location = new-object System.Drawing.Size(100,130)
+$drpMin.Size = new-object System.Drawing.Size(45,30)
+$bkpSched.Controls.Add($drpMin)
+
+ForEach ($Item in $minArray){
+     [void] $drpMin.Items.Add($Item)
+}
+
+$cbxFirs = New-Object System.Windows.Forms.Checkbox
+$cbxFirs.Location = New-Object System.Drawing.Size(30,170)
+$cbxFirs.Size = New-Object System.Drawing.Size(70,20)
+$cbxFirs.Text = "First day"
+$bkpSched.Controls.Add($cbxFirs)
+
+$cbxLast = New-Object System.Windows.Forms.Checkbox
+$cbxLast.Location = New-Object System.Drawing.Size(140,170)
+$cbxLast.Size = New-Object System.Drawing.Size(100,20)
+$cbxLast.Text = "Last day"
+$bkpSched.Controls.Add($cbxLast)
+
+$btnSave = New-Object System.Windows.Forms.Button
+$btnSave.Location = New-Object System.Drawing.Size(30,400)
+$btnSave.Size = New-Object System.Drawing.Size(75,23)
+$btnSave.Text = "Save"
+$btnSave.Add_Click({Create-Job})
+$bkpSched.Controls.Add($btnSave)
+
+$drpAmPm = new-object System.Windows.Forms.ComboBox
+$drpAmPm.Location = new-object System.Drawing.Size(180,130)
+$drpAmPm.Size = new-object System.Drawing.Size(45,30)
+$bkpSched.Controls.Add($drpAmPm)
+$drpAmPm.Add_SelectedIndexChanged($drpAmPm_SelectedIndexChanged)
+
+ForEach ($Item in $amPm){
+     [void] $drpAmPm.Items.Add($Item)
+}
+
+$lblAmPm = New-Object System.Windows.Forms.Label
+$lblAmPm.Location = New-Object System.Drawing.Size(180,110)
+$lblAmPm.Size = New-Object System.Drawing.Size(100,20)
+$lblAmPm.Text = "Clock"
+$bkpSched.Controls.Add($lblAmPm)
+
+$btnSaveJob = New-Object System.Windows.Forms.Button
+$btnSaveJob.Location = New-Object System.Drawing.Size(870,300)
+$btnSaveJob.Size = New-Object System.Drawing.Size(75,23)
+$btnSaveJob.Text = "Save"
+$btnSaveJob.Add_Click({})
+$bkpForm.Controls.Add($btnSaveJob)
 
 $objForm.Add_Shown({$objForm.Activate()})
 [void] $objForm.ShowDialog()
